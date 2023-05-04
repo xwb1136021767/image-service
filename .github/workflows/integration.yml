@@ -76,7 +76,7 @@ jobs:
               "nydus_project": "/home/runner/work/image-service/image-service",
               "nydus_runtime_conf": {
                   "profile": "release",
-                  "log_level": "info"
+                  "log_level": "trace"
               },
               "registry": {
                   "registry_url": "localhost:5000",
