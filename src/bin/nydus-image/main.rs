@@ -26,6 +26,7 @@ use clap::{Arg, ArgAction, ArgMatches, Command as App};
 use nix::unistd::{getegid, geteuid};
 use nydus::{get_build_time_info, setup_logging};
 use nydus_api::{BuildTimeInfo, ConfigV2, LocalFsConfig};
+use nydus_builder::core::bootstrap_dedup::BootstrapDedup;
 use nydus_builder::{
     parse_chunk_dict_arg, ArtifactStorage, BlobCompactor, BlobManager, BootstrapManager,
     BuildContext, BuildOutput, Builder, ConversionType, DirectoryBuilder, Feature, Features,
@@ -705,8 +706,33 @@ fn prepare_cmd_args(bti_string: &'static str) -> App {
                     .long("output")
                     .help("path for output tar file")
                     .required(true),
-            ),
-    )
+                )
+        )
+        .subcommand(
+            App::new("dedup")
+            .about("(experimental)Rebuild the given bootstrap, remap duplicate blocks to those that already exist locally.")
+            .arg(
+                Arg::new("bootstrap")
+                    .long("bootstrap")
+                    .short('B')
+                    .help("Path to nydus image's metadata blob (required)")
+                    .required(true),
+            ).
+            arg(
+                Arg::new("output-bootstrap")
+                    .long("output")
+                    .short('O')
+                    .help("Bootstrap to output, default is source bootstrap add suffix .debup")
+                    .required(false),
+            )
+            .arg(
+                Arg::new("config")
+                    .long("config")
+                    .short('C')
+                    .help("config to compactor")
+                    .required(true),
+            )
+        )
 }
 
 fn init_log(matches: &ArgMatches) -> Result<()> {
@@ -766,6 +792,8 @@ fn main() -> Result<()> {
         Command::compact(matches, &build_info)
     } else if let Some(matches) = cmd.subcommand_matches("unpack") {
         Command::unpack(matches)
+    } else if let Some(matches) = cmd.subcommand_matches("dedup") {
+        Command::dedup(matches)
     } else {
         println!("{}", usage);
         Ok(())
@@ -1439,6 +1467,23 @@ impl Command {
             stat.dump();
         }
 
+        Ok(())
+    }
+
+    fn dedup(matches: &clap::ArgMatches) -> Result<()> {
+        let bootstrap_path = PathBuf::from(Self::get_bootstrap(matches)?);
+        let output_path = match matches.get_one::<String>("output-bootstrap") {
+            None => bootstrap_path.with_extension("boot.dedup"),
+            Some(s) => PathBuf::from(s),
+        };
+
+        //config
+        let config =
+            Self::get_configuration(matches).context("failed to get configuration information")?;
+        config.internal.set_blob_accessible(true);
+
+        let mut dedup = BootstrapDedup::new(bootstrap_path, output_path, &config)?;
+        dedup.do_dedup()?;
         Ok(())
     }
 

@@ -193,7 +193,7 @@ impl Write for ArtifactMemoryWriter {
     }
 }
 
-struct ArtifactFileWriter(ArtifactWriter);
+pub struct ArtifactFileWriter(pub ArtifactWriter);
 
 impl RafsIoWrite for ArtifactFileWriter {
     fn as_any(&self) -> &dyn Any {
@@ -911,6 +911,13 @@ impl BlobManager {
 
     pub fn get_blob_ids(&self) -> Vec<String> {
         self.blobs.iter().map(|b| b.blob_id.to_owned()).collect()
+    }
+
+    pub fn get_blob_id_by_idx(&mut self, idx: usize) -> Option<String> {
+        if idx >= self.len() {
+            return None;
+        }
+        self.blobs[idx].blob_id()
     }
 
     /// Prepend all blobs from `blob_table` to the blob manager.

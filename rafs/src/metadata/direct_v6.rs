@@ -1373,6 +1373,7 @@ pub(crate) struct DirectChunkInfoV6 {
     mapping: DirectSuperBlockV6,
     offset: usize,
     digest: RafsDigest,
+    is_dedup: bool,
 }
 
 // This is *direct* metadata mode in-memory chunk info object.
@@ -1394,6 +1395,7 @@ impl DirectChunkInfoV6 {
             mapping,
             offset,
             digest: chunk.block_id,
+            is_dedup: chunk.is_deduped(),
         })
     }
 
@@ -1434,6 +1436,10 @@ impl BlobChunkInfo for DirectChunkInfoV6 {
         self.v5_chunk(&state)
             .flags
             .contains(BlobChunkFlags::ENCYPTED)
+    }
+
+    fn is_deduped(&self) -> bool {
+        self.is_dedup
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -1520,6 +1526,10 @@ impl BlobChunkInfo for TarfsChunkInfoV6 {
     }
 
     fn is_encrypted(&self) -> bool {
+        false
+    }
+
+    fn is_deduped(&self) -> bool {
         false
     }
 
