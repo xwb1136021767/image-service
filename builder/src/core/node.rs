@@ -118,7 +118,7 @@ impl NodeChunk {
 }
 
 /// Struct to host sharable fields of [Node].
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 pub struct NodeInfo {
     /// Whether the explicit UID/GID feature is enabled or not.
     pub explicit_uidgid: bool,
@@ -736,7 +736,7 @@ impl Node {
             .with_context(|| format!("failed to get metadata of {}", self.path().display()))
     }
 
-    pub fn get_chunk_ofs(&mut self, meta: &RafsSuperMeta) -> Result<(u64, u64)> {
+    fn get_chunk_ofs(&mut self, meta: &RafsSuperMeta) -> Result<(u64, u64)> {
         if meta.version == RAFS_SUPER_VERSION_V6 {
             self.get_chunk_ofs_v6(meta)
         } else {
@@ -898,23 +898,6 @@ impl Node {
                 RafsVersion::V6 => self.dedup_bootstrap_v6(build_ctx, chunk, writer),
             },
         }
-    }
-
-    pub fn update_inode_digest_for_bootstrap(&self, writer: &mut dyn RafsIoWrite) -> Result<()> {
-        // Dump inode info
-        if let InodeWrapper::V5(raw_inode) = &self.inode {
-            let name = self.name();
-            let inode = RafsV5InodeWrapper {
-                name,
-                symlink: self.info.symlink.as_deref(),
-                inode: raw_inode,
-            };
-            inode
-                .store(writer)
-                .context("failed to dump inode to bootstrap")?;
-        }
-
-        Ok(())
     }
 
     fn dedup_bootstrap_v5(
@@ -1096,4 +1079,9 @@ impl Node {
         }
         self.info = Arc::new(info);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
 }
